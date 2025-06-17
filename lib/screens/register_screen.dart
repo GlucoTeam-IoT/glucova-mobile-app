@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_styles.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -16,6 +17,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   bool _agreeToTerms = false;
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
+  String _errorMessage = '';
 
   @override
   void dispose() {
@@ -25,6 +29,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  // Método para manejar el registro de usuarios
+  Future<void> _handleRegister() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    // Validaciones básicas
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Por favor, complete los campos requeridos';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        _errorMessage = 'Las contraseñas no coinciden';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (!_agreeToTerms) {
+      setState(() {
+        _errorMessage = 'Debe aceptar los términos y condiciones';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      await _authService.signUp(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      
+      // Navegar a la pantalla principal después de un registro exitoso
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } catch (e) {
+      setState(() {
+        if (e.toString().contains('409')) {
+          _errorMessage = 'El correo electrónico ya está registrado. Por favor, usa otro email o inicia sesión.';
+        } else if (e.toString().contains('Tiempo de espera')) {
+          _errorMessage = 'El servidor está tardando en responder. Por favor, inténtalo más tarde.';
+        } else if (e.toString().contains('Exception:')) {
+          _errorMessage = e.toString().split('Exception: ')[1];
+        } else {
+          _errorMessage = 'Error al registrar usuario: ${e.toString()}';
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -160,15 +227,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       Expanded(
                         child: RichText(
-                          text: TextSpan(
+                          text: const TextSpan(
                             text: 'I agree to the ',
-                            style: const TextStyle(color: AppColors.textDark),
+                            style: TextStyle(color: AppColors.textDark),
                             children: [
                               TextSpan(
                                 text: 'Terms of Service',
                                 style: AppStyles.linkStyle,
                               ),
-                              const TextSpan(
+                              TextSpan(
                                 text: ' and ',
                                 style: TextStyle(color: AppColors.textDark),
                               ),
@@ -182,22 +249,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+                  
+                  // Error message if exists
+                  if (_errorMessage.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text(
+                        _errorMessage,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
                   
                   // Create Account Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _agreeToTerms
-                          ? () {
-                              // Handle create account
-                            }
+                      onPressed: (_agreeToTerms && !_isLoading)
+                          ? _handleRegister
                           : null,
                       style: AppStyles.primaryButtonStyle,
-                      child: const Text(
-                        'Create Account',
-                        style: AppStyles.buttonTextStyle,
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Create Account',
+                              style: AppStyles.buttonTextStyle,
+                            ),
                     ),
                   ),
                   const SizedBox(height: 24),
