@@ -5,15 +5,14 @@ import '../models/record.dart';
 
 class RecordService {
   final String baseUrl = 'https://glucova-backend-1c16.onrender.com/api/v1';
-
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return prefs.getString('auth_token');
   }
 
   Future<List<Record>> getRecords({int limit = 100, int skip = 0}) async {
-    try {
-      final token = await _getToken();
+    try {      final token = await _getToken();
+      print('DEBUG RecordService: Token retrieved: ${token != null ? 'YES' : 'NO'}');
       if (token == null) {
         throw Exception('No hay token de autenticación');
       }

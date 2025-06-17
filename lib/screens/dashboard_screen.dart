@@ -6,6 +6,7 @@ import '../models/alert.dart';
 import '../services/auth_service.dart';
 import 'history_screen.dart';
 import 'devices_screen.dart';
+import 'alerts_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -75,7 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _buildProfileScreen(),
           const HistoryScreen(),
           const DevicesScreen(),
-          const Center(child: Text("Alertas")),
+          const AlertsScreen(),
           const Center(child: Text("Contactos")),
         ],
       ),
@@ -358,15 +359,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
   Widget _buildAlertCard(Alert alert) {
-    final IconData iconData = alert.type == "glucose" 
-        ? Icons.warning 
-        : Icons.notifications;
+    // Determinar el ícono según el nivel de alerta
+    final IconData iconData;
+    final Color iconColor;
     
-    final Color iconColor = alert.type == "glucose" 
-        ? Colors.red 
-        : AppColors.primaryBlue;
+    switch (alert.level.toLowerCase()) {
+      case 'critical':
+        iconData = Icons.warning;
+        iconColor = Colors.red;
+        break;
+      case 'high':
+        iconData = Icons.arrow_upward;
+        iconColor = Colors.orange;
+        break;
+      case 'medium':
+        iconData = Icons.remove;
+        iconColor = Colors.amber;
+        break;
+      case 'low':
+        iconData = Icons.arrow_downward;
+        iconColor = Colors.blue;
+        break;
+      default:
+        iconData = Icons.notifications;
+        iconColor = AppColors.primaryBlue;
+    }
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -408,7 +426,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 Text(
-                  "${alert.time}${alert.details.isNotEmpty ? ' - ${alert.details}' : ''}",
+                  "${alert.date.day}/${alert.date.month}/${alert.date.year} ${alert.date.hour}:${alert.date.minute} - ${alert.glucoseLevel} mg/dL",
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppColors.textLight,
@@ -418,7 +436,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
-      ),    );
+      ),
+    );
   }  
     Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(

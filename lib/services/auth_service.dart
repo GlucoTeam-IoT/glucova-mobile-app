@@ -7,18 +7,19 @@ class AuthService {
   static const String baseUrl = 'https://glucova-backend-1c16.onrender.com/api/v1/users';
   static const String signInEndpoint = '$baseUrl/sign-in';
   static const String signUpEndpoint = '$baseUrl/sign-up';
-
   // Almacenar token JWT
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
+    print('DEBUG AuthService: Token saved successfully');
   }
-
   // Obtener token JWT almacenado
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }  // Iniciar sesión
+    final token = prefs.getString('auth_token');
+    print('DEBUG AuthService: Token retrieved: ${token != null ? 'YES' : 'NO'}');
+    return token;
+  }// Iniciar sesión
   Future<User> signIn(String email, String password) async {
     try {
       print('Intentando conectar a: $signInEndpoint');

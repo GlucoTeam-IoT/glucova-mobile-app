@@ -5,17 +5,17 @@ import '../models/device.dart';
 
 class DeviceService {
   final String baseUrl = 'https://glucova-backend-1c16.onrender.com/api/v1';
-
   // Obtiene el token JWT de las preferencias compartidas
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return prefs.getString('auth_token');
   }
 
   // Obtiene la lista de dispositivos desde la API
   Future<List<Device>> getDevices() async {
     try {
       final token = await _getToken();
+      print('DEBUG DeviceService: Token retrieved: ${token != null ? 'YES' : 'NO'}');
       if (token == null) {
         throw Exception('No hay token de autenticación');
       }
