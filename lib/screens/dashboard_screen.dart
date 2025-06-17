@@ -4,6 +4,7 @@ import '../utils/app_styles.dart';
 import '../models/health_metrics.dart';
 import '../models/alert.dart';
 import '../services/auth_service.dart';
+import 'history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -66,13 +67,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
           ),
         ],
-      ),
-      body: IndexedStack(
+      ),      body: IndexedStack(
         index: _selectedIndex,
         children: [
           _buildDashboard(),
           _buildProfileScreen(),
-          const Center(child: Text("Historial")),
+          const HistoryScreen(),
           const Center(child: Text("Dispositivos")),
           const Center(child: Text("Alertas")),
           const Center(child: Text("Contactos")),
