@@ -30,43 +30,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() {
       _isLoading = true;
       _hasError = false;
+      _errorMessage = '';
     });
 
     try {
-      // Cargamos datos reales desde la API
       print('DEBUG: Cargando registros con límite: $_limitValue');
       final records = await _recordService.getRecords(limit: _limitValue);
-      
-      // Si hay algún problema con la API, usa datos de ejemplo
-      if (records.isEmpty) {
-        print('DEBUG: No se obtuvieron registros, usando datos de ejemplo');
-        final mockRecords = Record.mockRecords();
-        setState(() {
-          _records = mockRecords;
-          _isLoading = false;
-        });
-        return;
-      }
       
       setState(() {
         _records = records;
         _isLoading = false;
       });
-      print('DEBUG: Cargados ${records.length} registros');
+      
+      print('DEBUG: Cargados ${records.length} registros desde la API');
+      
+      // Si no hay registros desde la API, mostrar mensaje pero no usar mocks
+      if (records.isEmpty) {
+        print('DEBUG: No se encontraron registros en la API');
+      }
+      
     } catch (e) {
       print('ERROR: Error al cargar registros: $e');
       
-      // Usar datos mock en caso de error
-      final mockRecords = Record.mockRecords();
-      
       setState(() {
-        _records = mockRecords;
         _isLoading = false;
-        // No mostramos error al usuario, simplemente usamos datos de ejemplo
-        // _hasError = true;
-        // _errorMessage = 'Error al cargar registros: $e';
+        _hasError = true;
+        _errorMessage = 'Error al cargar registros desde el servidor';
+        _records = []; // No usar datos mock, mostrar error
       });
-      print('DEBUG: Usando ${mockRecords.length} registros de ejemplo');
     }
   }
 
@@ -110,152 +101,290 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildHistoryView() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Historial Médico',
-              style: const TextStyle(
-                fontSize: 24, 
-                fontWeight: FontWeight.bold,
-                color: AppColors.textDark,
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Filtros
-            Card(
-              elevation: 1,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        // Filtros ultra compactos con chips
+        Container(
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Registros a mostrar',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: AppColors.textDark,
+                    // Filtros con chips horizontales
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Text(
+                            'Mostrar:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 32,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _availableLimits.length,
+                                itemBuilder: (context, index) {
+                                  final limit = _availableLimits[index];
+                                  final isSelected = limit == _limitValue;
+                                  
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      label: Text(
+                                        '$limit',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isSelected ? Colors.white : AppColors.primaryBlue,
+                                        ),
+                                      ),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        if (selected && limit != _limitValue) {
+                                          setState(() {
+                                            _limitValue = limit;
+                                          });
+                                          _loadRecords();
+                                        }
+                                      },
+                                      selectedColor: AppColors.primaryBlue,
+                                      backgroundColor: Colors.grey.shade100,
+                                      checkmarkColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: DropdownButton<int>(
-                        value: _limitValue,
-                        isExpanded: true,
-                        underline: Container(),
-                        onChanged: (value) {
-                          if (value != null && value != _limitValue) {
-                            setState(() {
-                              _limitValue = value;
-                            });
-                            _loadRecords();
-                          }
-                        },
-                        items: _availableLimits.map((limit) {
-                          return DropdownMenuItem<int>(
-                            value: limit,
-                            child: Text('$limit'),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Aquí podrías agregar más filtros en el futuro
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _loadRecords,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryBlue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text('Aplicar filtros'),
-                      ),
+                    // Botón de actualizar compacto
+                    IconButton(
+                      onPressed: _isLoading ? null : _loadRecords,
+                      icon: _isLoading 
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: AppColors.primaryBlue,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.refresh, color: AppColors.primaryBlue),
+                      tooltip: 'Actualizar registros',
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 16),
-            
-            // Tabla de registros
-            _buildRecordsTable(),
-          ],
+          ),
         ),
-      ),
+        
+        // Lista scrolleable de registros
+        Expanded(
+          child: _buildRecordsList(),
+        ),
+      ],
     );
   }
 
-  Widget _buildRecordsTable() {
+  Widget _buildRecordsList() {
     if (_records.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'No hay registros disponibles',
-            style: TextStyle(fontSize: 16, color: AppColors.textLight),
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.inbox_outlined,
+                size: 64,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No hay registros disponibles',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Los registros aparecerán aquí cuando estén disponibles',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingTextStyle: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: AppColors.textDark,
-        ),
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 64,        columns: const [
-          DataColumn(label: Text('Fecha')),
-          DataColumn(label: Text('Hora')),
-          DataColumn(label: Text('Nivel de Glucosa')),
-        ],
-        rows: _records.map((record) {
-          final dateFormat = DateFormat('dd/MM/yyyy');
-          final timeFormat = DateFormat('HH:mm a');
-          
-          // Tratamiento para el color según el nivel de glucosa
-          final Color levelColor;
-          
-          if (record.status == 'CRITICAL') {
-            levelColor = Colors.red.shade100;
-          } else if (record.status == 'HIGH') {
-            levelColor = Colors.green.shade100;
-          } else if (record.status == 'VERY LOW') {
-            levelColor = Colors.blue.shade100;
-          } else {
-            levelColor = Colors.grey.shade100;
-          }
+    return Container(
+      color: Colors.grey[50],
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _records.length,
+        itemBuilder: (context, index) {
+          final record = _records[index];
+          return _buildRecordCard(record);
+        },
+      ),
+    );
+  }
 
-          return DataRow(
-            cells: [
-              DataCell(Text(dateFormat.format(record.date))),
-              DataCell(Text(timeFormat.format(record.date))),
-              DataCell(
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: levelColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text('${record.glucoseLevel} mg/dL'),
+  Widget _buildRecordCard(Record record) {
+    final dateFormat = DateFormat('dd/MM/yyyy');
+    final timeFormat = DateFormat('HH:mm a');
+    
+    // Color según el nivel de glucosa
+    Color statusColor;
+    Color statusBackgroundColor;
+    IconData statusIcon;
+    
+    switch (record.status.toUpperCase()) {
+      case 'CRITICAL':
+        statusColor = Colors.red.shade700;
+        statusBackgroundColor = Colors.red.shade50;
+        statusIcon = Icons.warning;
+        break;
+      case 'HIGH':
+        statusColor = Colors.orange.shade700;
+        statusBackgroundColor = Colors.orange.shade50;
+        statusIcon = Icons.trending_up;
+        break;
+      case 'NORMAL':
+        statusColor = Colors.green.shade700;
+        statusBackgroundColor = Colors.green.shade50;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'LOW':
+        statusColor = Colors.blue.shade700;
+        statusBackgroundColor = Colors.blue.shade50;
+        statusIcon = Icons.trending_down;
+        break;
+      case 'VERY LOW':
+        statusColor = Colors.purple.shade700;
+        statusBackgroundColor = Colors.purple.shade50;
+        statusIcon = Icons.keyboard_double_arrow_down;
+        break;
+      default:
+        statusColor = Colors.grey.shade700;
+        statusBackgroundColor = Colors.grey.shade50;
+        statusIcon = Icons.help;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Header con fecha y hora
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      dateFormat.format(record.date),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ],
                 ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      timeFormat.format(record.date),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Nivel de glucosa principal
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: statusBackgroundColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: statusColor.withOpacity(0.3)),
               ),
-            ],
-          );
-        }).toList(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    statusIcon,
+                    color: statusColor,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    children: [
+                      Text(
+                        '${record.glucoseLevel} mg/dL',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                      Text(
+                        record.status.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

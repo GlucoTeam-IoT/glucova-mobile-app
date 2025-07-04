@@ -169,7 +169,38 @@ class AuthService {
   Future<bool> isAuthenticated() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
-  }  // Obtener el usuario actual desde el token almacenado
+  }  // Obtener información del usuario desde la API
+  Future<Map<String, dynamic>?> getUserInformation() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('No hay token de autenticación');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/get-information'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('DEBUG getUserInformation: Status code: ${response.statusCode}');
+      print('DEBUG getUserInformation: Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('ERROR getUserInformation: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('ERROR getUserInformation: $e');
+      return null;
+    }
+  }
+
+  // Obtener el usuario actual desde el token almacenado
   Future<User?> getCurrentUser() async {
     print('DEBUG AUTH: Intentando obtener usuario actual');
     final token = await getToken();
@@ -180,38 +211,73 @@ class AuthService {
     }
     
     print('DEBUG AUTH: Token encontrado: ${token.substring(0, 20)}...');
-    String userId = '';
     
     try {
-      // Extraer la información del token JWT
-      final parts = token.split('.');
-      if (parts.length > 1) {
-        final payload = parts[1];
-        final normalized = base64Url.normalize(payload);
-        final decodedPayload = utf8.decode(base64Url.decode(normalized));
-        final payloadData = json.decode(decodedPayload);
+      // Primero, obtener la información del usuario desde la API
+      final userInfo = await getUserInformation();
+      
+      if (userInfo != null) {
+        print('DEBUG AUTH: Información del usuario obtenida: $userInfo');
         
-        userId = payloadData['sub'] ?? '';
-        print('DEBUG AUTH: ID extraído del token: $userId');
+        String userName = 'Usuario';
         
-        // Como el token no contiene el email ni el nombre, solo podemos usar el ID
+        // Si el nombre no es null y no está vacío, usarlo
+        if (userInfo['name'] != null && userInfo['name'].toString().isNotEmpty) {
+          userName = userInfo['name'];
+        } 
+        // Si no hay nombre pero hay email, crear un nombre a partir del email
+        else if (userInfo['email'] != null && userInfo['email'].toString().isNotEmpty) {
+          final email = userInfo['email'].toString();
+          final namePart = email.split('@')[0];
+          // Convertir puntos y guiones bajos en espacios y capitalizar
+          userName = namePart
+              .replaceAll('.', ' ')
+              .replaceAll('_', ' ')
+              .split(' ')
+              .map((word) => word.isNotEmpty 
+                  ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}' 
+                  : '')
+              .join(' ');
+        }
+        
         final user = User(
-          id: userId,
-          email: 'usuario@glucova.com',  // Usamos un valor por defecto
-          name: 'Usuario',  // Usamos un valor por defecto en lugar de null
+          id: userInfo['id'] ?? '',
+          email: userInfo['email'] ?? 'usuario@glucova.com',
+          name: userName,
           token: token,
         );
-        print('DEBUG AUTH: Usuario creado correctamente: ${user.id}');
+        
+        print('DEBUG AUTH: Usuario creado correctamente: ${user.id}, nombre: ${user.name}');
         return user;
       } else {
-        print('DEBUG AUTH: El token no tiene el formato correcto');
+        // Fallback: extraer información del token si la API falla
+        print('DEBUG AUTH: API falló, extrayendo información del token');
+        final parts = token.split('.');
+        if (parts.length > 1) {
+          final payload = parts[1];
+          final normalized = base64Url.normalize(payload);
+          final decodedPayload = utf8.decode(base64Url.decode(normalized));
+          final payloadData = json.decode(decodedPayload);
+          
+          final userId = payloadData['sub'] ?? '';
+          print('DEBUG AUTH: ID extraído del token: $userId');
+          
+          final user = User(
+            id: userId,
+            email: 'usuario@glucova.com',
+            name: 'Usuario',
+            token: token,
+          );
+          print('DEBUG AUTH: Usuario creado desde token: ${user.id}');
+          return user;
+        }
       }
     } catch (e) {
-      print('ERROR AUTH: Error al decodificar el token: $e');
+      print('ERROR AUTH: Error al obtener usuario: $e');
       return null;
     }
     
-    print('DEBUG AUTH: No se pudo extraer información del token');
+    print('DEBUG AUTH: No se pudo obtener información del usuario');
     return null;
   }
 }
