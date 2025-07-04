@@ -7,6 +7,7 @@ import '../services/alert_service.dart';
 import 'history_screen.dart';
 import 'devices_screen.dart';
 import 'alerts_screen.dart';
+import 'contacts_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -115,7 +116,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const HistoryScreen(),
           const DevicesScreen(),
           const AlertsScreen(),
-          const Center(child: Text("Contactos")),
+          const ContactsScreen(),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
