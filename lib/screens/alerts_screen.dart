@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/alert.dart';
-import '../models/device.dart';
 import '../services/alert_service.dart';
 import '../utils/app_colors.dart';
 
@@ -15,7 +14,6 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   final AlertService _alertService = AlertService();
   List<Alert> _alerts = [];
-  List<Device> _devices = [];
   bool _isLoading = false;
   bool _isFiltering = false;
 
@@ -40,34 +38,19 @@ class _AlertsScreenState extends State<AlertsScreen> {
     _loadInitialData();
   }
 
-  // Cargar datos iniciales (dispositivos y alertas)
+  // Cargar datos iniciales
   Future<void> _loadInitialData() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Cargar dispositivos para el filtro
-      final devices = await _alertService.getDevices();
-      if (devices.isNotEmpty) {
-        setState(() {
-          _devices = devices;
-        });
-      } else {
-        // Usar dispositivos de ejemplo si la API no retorna datos
-        setState(() {
-          _devices = Device.mockDevices();
-        });
-      }
-
-      // Cargar alertas
+      // Cargar alertas directamente
       await _loadAlerts();
     } catch (e) {
       print('ERROR: Error al cargar datos iniciales: $e');
-      // Usar datos de ejemplo en caso de error
       setState(() {
-        _devices = Device.mockDevices();
-        _alerts = Alert.mockAlerts();
+        _alerts = [];
         _isLoading = false;
       });
     }
@@ -80,22 +63,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
     });
 
     try {
+      // Preparar filtros según la lógica de endpoints
+      String? deviceFilter = (_selectedDeviceId == 'all') ? null : _selectedDeviceId;
+      String? levelFilter = (_selectedLevel == 'all') ? null : _selectedLevel;
+      
       // Intentar cargar alertas desde la API
       final alerts = await _alertService.getAlerts(
-        deviceId: _selectedDeviceId == 'all' ? null : _selectedDeviceId,
-        level: _selectedLevel == 'all' ? null : _selectedLevel,
+        deviceId: deviceFilter,
+        level: levelFilter,
         limit: _selectedLimit,
       );
-
-      // Si no se obtienen alertas, usar datos de ejemplo
-      if (alerts.isEmpty) {
-        setState(() {
-          _alerts = Alert.mockAlerts();
-          _isLoading = false;
-          _isFiltering = false;
-        });
-        return;
-      }
 
       setState(() {
         _alerts = alerts;
@@ -105,18 +82,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
       print('DEBUG: Cargadas ${alerts.length} alertas');
     } catch (e) {
       print('ERROR: Error al cargar alertas: $e');
-      // Usar alertas de ejemplo en caso de error
       setState(() {
-        _alerts = Alert.mockAlerts();
         _isLoading = false;
         _isFiltering = false;
+        _alerts = []; // No usar datos mock, mostrar error
       });
     }
-  }
-
-  // Método para aplicar filtros
-  void _applyFilters() {
-    _loadAlerts();
   }
 
   // Crear nueva alerta (funcionalidad a implementar en el futuro)
@@ -172,191 +143,153 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Widget _buildAlertsView() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Título y subtítulo
-            Text(
-              'Alertas',
-              style: const TextStyle(
-                fontSize: 24, 
-                fontWeight: FontWeight.bold,
-                color: AppColors.textDark,
-              ),
-            ),
-            Text(
-              'Administra tus alertas de monitoreo',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Sección de filtros
-            _buildFiltersSection(),
-            const SizedBox(height: 16),
-            
-            // Lista de alertas
-            _isFiltering
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: CircularProgressIndicator(),
+    return Column(
+      children: [
+        // Filtros compactos
+        Container(
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Filtros en chips horizontales
+                Row(
+                  children: [
+                    Text(
+                      'Nivel:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
-                  )
-                : _alerts.isEmpty
-                    ? _buildEmptyAlertsView()
-                    : _buildAlertsList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFiltersSection() {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Filtrar alertas',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textDark,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Filtro de dispositivo
-            const Text('Dispositivo'),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedDeviceId,
-                  isExpanded: true,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedDeviceId = value;
-                      });
-                    }
-                  },
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: 'all',
-                      child: Text('Todos los dispositivos'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _levelOptions.length,
+                          itemBuilder: (context, index) {
+                            final option = _levelOptions[index];
+                            final isSelected = option['value'] == _selectedLevel;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: FilterChip(
+                                label: Text(
+                                  option['label']!,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected ? Colors.white : AppColors.primaryBlue,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() {
+                                      _selectedLevel = option['value'] == 'all' ? 'all' : option['value']!;
+                                    });
+                                    _loadAlerts();
+                                  }
+                                },
+                                selectedColor: AppColors.primaryBlue,
+                                backgroundColor: Colors.grey.shade100,
+                                checkmarkColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                    ..._devices.map((device) {
-                      // Mostrar una versión truncada del ID
-                      String shortId = device.id.length > 15
-                          ? '${device.id.substring(0, 15)}...'
-                          : device.id;
-                      
-                      return DropdownMenuItem<String>(
-                        value: device.id,
-                        child: Text(shortId),
-                      );
-                    }).toList(),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Filtro de nivel
-            const Text('Nivel'),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedLevel,
-                  isExpanded: true,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedLevel = value;
-                      });
-                    }
-                  },
-                  items: _levelOptions.map((level) {
-                    return DropdownMenuItem<String>(
-                      value: level['value'],
-                      child: Text(level['label']!),
-                    );
-                  }).toList(),
+                const SizedBox(height: 8),
+                
+                // Segunda fila: Límite y botón de actualizar
+                Row(
+                  children: [
+                    Text(
+                      'Mostrar:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _limitOptions.length,
+                          itemBuilder: (context, index) {
+                            final limit = _limitOptions[index];
+                            final isSelected = limit == _selectedLimit;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: FilterChip(
+                                label: Text(
+                                  '$limit',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected ? Colors.white : AppColors.primaryBlue,
+                                  ),
+                                ),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setState(() {
+                                      _selectedLimit = limit;
+                                    });
+                                    _loadAlerts();
+                                  }
+                                },
+                                selectedColor: AppColors.primaryBlue,
+                                backgroundColor: Colors.grey.shade100,
+                                checkmarkColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    // Botón de actualizar
+                    IconButton(
+                      onPressed: _isFiltering ? null : _loadAlerts,
+                      icon: _isFiltering 
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: AppColors.primaryBlue,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.refresh, color: AppColors.primaryBlue),
+                      tooltip: 'Actualizar alertas',
+                    ),
+                  ],
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 16),
-            
-            // Filtro de límite
-            const Text('Mostrar'),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _selectedLimit,
-                  isExpanded: true,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedLimit = value;
-                      });
-                    }
-                  },
-                  items: _limitOptions.map((limit) {
-                    return DropdownMenuItem<int>(
-                      value: limit,
-                      child: Text('$limit alertas'),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            // Botón para aplicar filtros
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _applyFilters,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text('Aplicar filtros'),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        
+        // Lista scrolleable de alertas
+        Expanded(
+          child: _isFiltering
+            ? const Center(child: CircularProgressIndicator())
+            : _alerts.isEmpty
+                ? _buildEmptyAlertsView()
+                : _buildAlertsList(),
+        ),
+      ],
     );
   }
 
@@ -367,17 +300,28 @@ class _AlertsScreenState extends State<AlertsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_off, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.notifications_off, 
+              size: 64, 
+              color: Colors.grey[400]
+            ),
             const SizedBox(height: 16),
             Text(
               'No hay alertas que mostrar',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[600]
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Prueba a cambiar los filtros o a crear una nueva alerta',
+              'Las alertas aparecerán aquí cuando estén disponibles',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14, 
+                color: Colors.grey[500]
+              ),
             ),
           ],
         ),
@@ -386,14 +330,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Widget _buildAlertsList() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _alerts.length,
-      itemBuilder: (context, index) {
-        final alert = _alerts[index];
-        return _buildAlertCard(alert);
-      },
+    return Container(
+      color: Colors.grey[50],
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _alerts.length,
+        itemBuilder: (context, index) {
+          final alert = _alerts[index];
+          return _buildAlertCard(alert);
+        },
+      ),
     );
   }
 

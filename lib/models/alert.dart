@@ -17,16 +17,54 @@ class Alert {
 
   // Factory constructor para crear un objeto Alert desde JSON
   factory Alert.fromJson(Map<String, dynamic> json) {
-    return Alert(
-      id: json['_id'] ?? '',
-      deviceId: json['device_id'] ?? '',
-      message: json['message'] ?? '',
-      date: json['date'] != null 
-          ? DateTime.parse(json['date'])
-          : DateTime.now(),
-      level: json['level'] ?? 'medium',
-      glucoseLevel: json['glucose_level'] ?? 0,
-    );
+    try {
+      // La API devuelve campos: id, message, level, timestamp, device_id
+      final String idValue = json['id']?.toString() ?? '';
+      final String deviceIdValue = json['device_id']?.toString() ?? '';
+      final String messageValue = json['message']?.toString() ?? '';
+      
+      // Manejar timestamp
+      DateTime dateValue;
+      try {
+        final dateStr = json['timestamp']?.toString();
+        if (dateStr != null && dateStr.isNotEmpty) {
+          // La API devuelve formato: "2025-07-04T05:04:10"
+          dateValue = DateTime.parse(dateStr);
+        } else {
+          dateValue = DateTime.now();
+        }
+      } catch (e) {
+        print('Warning: Could not parse timestamp from JSON, using current time');
+        dateValue = DateTime.now();
+      }
+      
+      final String levelValue = json['level']?.toString().toLowerCase() ?? 'medium';
+      
+      // Extraer nivel de glucosa del mensaje
+      int glucoseValue = 0;
+      try {
+        final RegExp glucoseRegex = RegExp(r'(\d+)\s*mg/dL');
+        final match = glucoseRegex.firstMatch(messageValue);
+        if (match != null) {
+          glucoseValue = int.parse(match.group(1) ?? '0');
+        }
+      } catch (e) {
+        print('Warning: Could not extract glucose level from message: $messageValue');
+      }
+      
+      return Alert(
+        id: idValue,
+        deviceId: deviceIdValue,
+        message: messageValue,
+        date: dateValue,
+        level: levelValue,
+        glucoseLevel: glucoseValue,
+      );
+    } catch (e) {
+      print('ERROR parsing Alert from JSON: $e');
+      print('Problematic JSON: $json');
+      rethrow;
+    }
   }
 
   // Obtener el nombre en español del nivel

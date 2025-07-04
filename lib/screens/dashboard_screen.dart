@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
-import '../utils/app_styles.dart';
 import '../models/health_metrics.dart';
 import '../models/alert.dart';
 import '../services/auth_service.dart';
+import '../services/alert_service.dart';
 import 'history_screen.dart';
 import 'devices_screen.dart';
 import 'alerts_screen.dart';
@@ -18,15 +18,18 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final HealthMetrics _metrics = HealthMetrics.mock();
-  final List<Alert> _alerts = Alert.mockAlerts();
+  List<Alert> _alerts = [];
   String _userName = "Usuario";
   String _userEmail = "";
   final AuthService _authService = AuthService();
+  final AlertService _alertService = AlertService();
+  bool _isLoadingAlerts = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadRecentAlerts();
   }
   
   Future<void> _loadUserData() async {
@@ -50,6 +53,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
   
+  Future<void> _loadRecentAlerts() async {
+    print('DEBUG: Cargando alertas recientes para el dashboard');
+    try {
+      setState(() {
+        _isLoadingAlerts = true;
+      });
+      
+      // Cargar las 4 alertas más recientes
+      final alerts = await _alertService.getAlerts(limit: 4);
+      print('DEBUG: Alertas cargadas: ${alerts.length}');
+      
+      if (mounted) {
+        setState(() {
+          _alerts = alerts;
+          _isLoadingAlerts = false;
+        });
+      }
+    } catch (e) {
+      print('ERROR: Error al cargar alertas recientes: $e');
+      if (mounted) {
+        setState(() {
+          _alerts = [];
+          _isLoadingAlerts = false;
+        });
+      }
+    }
+  }
+  
   @override  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -60,12 +91,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primaryBlue),
-            onPressed: _loadUserData,
+            onPressed: () {
+              _loadUserData();
+              if (_selectedIndex == 0) {
+                _loadRecentAlerts();
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: AppColors.primaryBlue),
             onPressed: () {
-              // Handle notifications
+              setState(() {
+                _selectedIndex = 4; // Navegar a la pantalla de alertas
+              });
             },
           ),
         ],
@@ -273,8 +311,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: AppColors.textDark,
             ),
           ),
-          const SizedBox(height: 16),          // Alert list
-          ..._alerts.map((alert) => _buildAlertCard(alert)).toList(),
+          const SizedBox(height: 16),
+          
+          // Alert list with loading state
+          if (_isLoadingAlerts)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_alerts.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 16),
+                  Text(
+                    "No hay alertas recientes",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textLight,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._alerts.map((alert) => _buildAlertCard(alert)).toList(),
         ],
       ),
     );
@@ -360,30 +437,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
   Widget _buildAlertCard(Alert alert) {
-    // Determinar el ícono según el nivel de alerta
-    final IconData iconData;
-    final Color iconColor;
+    // Color del icono y nivel según el level de la alerta
+    Color levelColor;
+    Color levelTextColor;
+    IconData iconData;
     
     switch (alert.level.toLowerCase()) {
       case 'critical':
+        levelColor = Colors.red.shade100;
+        levelTextColor = Colors.red;
         iconData = Icons.warning;
-        iconColor = Colors.red;
         break;
       case 'high':
+        levelColor = Colors.orange.shade100;
+        levelTextColor = Colors.orange.shade700;
         iconData = Icons.arrow_upward;
-        iconColor = Colors.orange;
         break;
       case 'medium':
+        levelColor = Colors.yellow.shade100;
+        levelTextColor = Colors.amber.shade700;
         iconData = Icons.remove;
-        iconColor = Colors.amber;
         break;
       case 'low':
+        levelColor = Colors.blue.shade100;
+        levelTextColor = Colors.blue;
         iconData = Icons.arrow_downward;
-        iconColor = Colors.blue;
         break;
       default:
+        levelColor = Colors.grey.shade100;
+        levelTextColor = Colors.grey.shade700;
         iconData = Icons.notifications;
-        iconColor = AppColors.primaryBlue;
     }
     
     return Container(
@@ -408,27 +491,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: iconColor.withOpacity(0.1),
+              color: levelColor,
             ),
-            child: Icon(iconData, color: iconColor),
+            child: Icon(iconData, color: levelTextColor),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Nivel de alerta
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: levelColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    alert.getLevelName(),
+                    style: TextStyle(
+                      color: levelTextColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   alert.message,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: AppColors.textDark,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  "${alert.date.day}/${alert.date.month}/${alert.date.year} ${alert.date.hour}:${alert.date.minute} - ${alert.glucoseLevel} mg/dL",
+                  "${alert.date.day}/${alert.date.month}/${alert.date.year} ${alert.date.hour.toString().padLeft(2, '0')}:${alert.date.minute.toString().padLeft(2, '0')} - ${alert.glucoseLevel} mg/dL",
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     color: AppColors.textLight,
                   ),
                 ),
