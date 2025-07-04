@@ -8,6 +8,7 @@ import 'history_screen.dart';
 import 'devices_screen.dart';
 import 'alerts_screen.dart';
 import 'contacts_screen.dart';
+import 'emergency_settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -117,6 +118,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const DevicesScreen(),
           const AlertsScreen(),
           const ContactsScreen(),
+          const EmergencySettingsScreen(),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -145,6 +147,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const Text("Alertas", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold));
       case 5:
         return const Text("Contactos", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold));
+      case 6:
+        return const Text("Emergencia", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold));
       default:
         return const Text("GlucoVa", style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold));
     }
@@ -588,6 +592,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           icon: Icon(Icons.contacts_outlined),
           activeIcon: Icon(Icons.contacts),
           label: 'Contactos',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.emergency_outlined),
+          activeIcon: Icon(Icons.emergency),
+          label: 'Emergencia',
         ),
       ],
     );

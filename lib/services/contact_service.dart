@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/contact.dart';
 
 class ContactService {
@@ -108,6 +109,53 @@ class ContactService {
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('ERROR ContactService: $e');
+      return false;
+    }
+  }
+
+  // NUEVA FUNCIONALIDAD: Hacer una llamada telefónica
+  Future<bool> makePhoneCall(String phoneNumber) async {
+    try {
+      // Limpiar el número de teléfono (remover espacios y caracteres especiales)
+      String cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+      
+      // Crear la URL de llamada
+      final Uri phoneUri = Uri(scheme: 'tel', path: cleanedNumber);
+      
+      print('DEBUG ContactService: Intentando llamar a: $cleanedNumber');
+      
+      // Verificar si se puede hacer la llamada
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+        return true;
+      } else {
+        print('ERROR ContactService: No se puede hacer la llamada a $cleanedNumber');
+        return false;
+      }
+    } catch (e) {
+      print('ERROR ContactService makePhoneCall: $e');
+      return false;
+    }
+  }
+
+  // NUEVA FUNCIONALIDAD: Enviar un email
+  Future<bool> sendEmail(String email) async {
+    try {
+      // Crear la URL de email
+      final Uri emailUri = Uri(scheme: 'mailto', path: email);
+      
+      print('DEBUG ContactService: Intentando enviar email a: $email');
+      
+      // Verificar si se puede enviar el email
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri);
+        return true;
+      } else {
+        print('ERROR ContactService: No se puede enviar email a $email');
+        return false;
+      }
+    } catch (e) {
+      print('ERROR ContactService sendEmail: $e');
       return false;
     }
   }

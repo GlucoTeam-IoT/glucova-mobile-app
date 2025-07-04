@@ -4,10 +4,21 @@ import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'utils/app_colors.dart';
 import 'services/auth_service.dart';
+import 'services/emergency_service_simple.dart';
 import 'package:flutter/foundation.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar servicio de emergencia simplificado
+  try {
+    final emergencyService = EmergencyService();
+    await emergencyService.initialize();
+    print('DEBUG Main: Servicio de emergencia inicializado');
+  } catch (e) {
+    print('ERROR Main: Error inicializando servicio de emergencia: $e');
+  }
+  
   runApp(const MyApp());
 }
 

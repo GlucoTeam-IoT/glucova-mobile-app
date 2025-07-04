@@ -40,8 +40,6 @@ dependencies:
   # Nuevas dependencias para funcionalidad de emergencia
   url_launcher: ^6.2.2
   permission_handler: ^11.2.0
-  workmanager: ^0.5.2
-  firebase_messaging: ^14.7.6
 
 dev_dependencies:
   flutter_test:
