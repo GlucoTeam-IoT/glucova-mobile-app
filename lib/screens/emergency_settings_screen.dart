@@ -8,10 +8,11 @@ class EmergencySettingsScreen extends StatefulWidget {
   const EmergencySettingsScreen({Key? key}) : super(key: key);
 
   @override
-  State<EmergencySettingsScreen> createState() => _EmergencySettingsScreenState();
+  EmergencySettingsScreenState createState() => EmergencySettingsScreenState();
 }
 
-class _EmergencySettingsScreenState extends State<EmergencySettingsScreen> {
+class EmergencySettingsScreenState extends State<EmergencySettingsScreen>
+    with WidgetsBindingObserver {
   final EmergencyService _emergencyService = EmergencyService();
   final ContactService _contactService = ContactService();
   
@@ -22,10 +23,26 @@ class _EmergencySettingsScreenState extends State<EmergencySettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadEmergencyData();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadEmergencyData();
+    }
+  }
+
   Future<void> _loadEmergencyData() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -45,6 +62,11 @@ class _EmergencySettingsScreenState extends State<EmergencySettingsScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // Make this method public so it can be called from the dashboard
+  Future<void> refreshData() async {
+    await _loadEmergencyData();
   }
 
   @override

@@ -90,23 +90,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
     }
   }
 
-  // Crear nueva alerta (funcionalidad a implementar en el futuro)
-  void _createNewAlert() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Crear alerta'),
-        content: const Text('Esta funcionalidad será implementada próximamente.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Eliminar una alerta (funcionalidad a implementar en el futuro)
   void _deleteAlert(String alertId) {
     showDialog(
@@ -134,11 +117,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
               onRefresh: _loadAlerts,
               child: _buildAlertsView(),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _createNewAlert,
-        backgroundColor: AppColors.primaryBlue,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 

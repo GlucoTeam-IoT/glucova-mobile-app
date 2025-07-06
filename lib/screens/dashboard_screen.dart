@@ -27,6 +27,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final AlertService _alertService = AlertService();
   bool _isLoadingAlerts = true;
 
+  final GlobalKey<EmergencySettingsScreenState> _emergencySettingsKey =
+      GlobalKey<EmergencySettingsScreenState>();
+
   @override
   void initState() {
     super.initState();
@@ -83,7 +86,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
   
-  @override  Widget build(BuildContext context) {
+  void _onItemTapped(int index) {
+    if (index == 6) {
+      _emergencySettingsKey.currentState?.refreshData();
+    }
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -118,7 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const DevicesScreen(),
           const AlertsScreen(),
           const ContactsScreen(),
-          const EmergencySettingsScreen(),
+          EmergencySettingsScreen(key: _emergencySettingsKey),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -547,13 +560,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }  
     Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
-      currentIndex: _selectedIndex,
-      onTap: (index) {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
       type: BottomNavigationBarType.fixed,
+      currentIndex: _selectedIndex,
+      onTap: _onItemTapped,
+      backgroundColor: Colors.white,
       selectedItemColor: AppColors.primaryBlue,
       unselectedItemColor: Colors.grey,
       // Aumentar el tamaño del ícono seleccionado
